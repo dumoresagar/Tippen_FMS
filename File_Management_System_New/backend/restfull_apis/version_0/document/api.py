@@ -6841,7 +6841,7 @@ class TippenScanDocumentListView(ListAPIView):
     queryset = TippenDocument.objects.all()
     permission_classes = [IsAuthenticated,]
     authentication_classes = (TokenAuthentication,)
-    serializer_class = ScanDocumentListSerializer
+    serializer_class = TippenScanDocumentListSerializer
     pagination_class = CustomPageNumberPagination
     filter_backends = [DjangoFilterBackend,filters.SearchFilter]
     search_fields = []
@@ -6892,11 +6892,11 @@ class TippenScanDocumentListView(ListAPIView):
         queryset = self.queryset
         agency_ids = User.objects.filter(id=self.request.user.id).values_list('agency', flat=True)
         if User.objects.filter(id=self.request.user.id, user_role__role_name="Super Admin"):
-            query_set = queryset.filter(current_status=1).order_by('-date_created')
+            query_set = queryset.filter(current_status=36).order_by('-date_created')
         elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
-            query_set = queryset.filter(tippen_digitize_agency_id__in=agency_ids,current_status=36).exclude(tippen_digitize_by__isnull=False).order_by('-date_created')
+            query_set = queryset.filter(tippen_digitize_agency_id__in=agency_ids,current_status=37).exclude(tippen_digitize_by__isnull=False).order_by('-date_created')
         else:
-            current_status_values = [36,38]
+            current_status_values = [37,38,39]
             query_set = queryset.filter(tippen_digitize_agency_id__in=agency_ids,tippen_digitize_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
         
         village_name = self.request.query_params.get('village_name', None)
@@ -7060,7 +7060,7 @@ class UpdateTippenDigitizeFileCreateView(generics.GenericAPIView):
                         'tippen_digitize_upload': uploaded_file,  # Pass the uploaded file data
                         "tippen_digitize_by": tippen_digitize_by,
                         "tippen_digitize_completed_date": completed_date,
-                        "current_status": 37
+                        "current_status": 40
                     }
 
                     serializer = self.get_serializer(obj, data=update_data, partial=True)
@@ -7150,7 +7150,7 @@ class UpdateTippenGovQCFileCreateView(generics.GenericAPIView):
                             "tippen_polygon_count":tippen_polygon_count,
                             "tippen_remarks":tippen_remarks,
                             "tippen_qc_completed_date": completed_date,
-                            "current_status": 40
+                            "current_status": 44
                         }
 
                     serializer = self.get_serializer(obj, data=update_data, partial=True)
@@ -7192,7 +7192,7 @@ class UpdateTippenGovQCFileCreateView(generics.GenericAPIView):
                 # Update the fields specified in the dictionary
                 serializer = UploadDocumentSerializer(rectify_obj, data=update_data, partial=True)
                 if serializer.is_valid():
-                    serializer.save(current_status=DocumentStatus.objects.get(id=41))
+                    serializer.save(current_status=DocumentStatus.objects.get(id=42))
         
             return Response({"message": "Digitize Files Rejected"})
             # Handle 'rejected' action here
@@ -7201,3 +7201,228 @@ class UpdateTippenGovQCFileCreateView(generics.GenericAPIView):
 
         else:
             return Response({"message": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+class TippenDigitizeDocumentListView(ListAPIView):
+    queryset = TippenDocument.objects.all()
+    permission_classes = [IsAuthenticated,]
+    authentication_classes = (TokenAuthentication,)
+    serializer_class = TippenScanDocumentListSerializer
+    pagination_class = CustomPageNumberPagination
+    filter_backends = [DjangoFilterBackend,filters.SearchFilter]
+    search_fields = []
+    filterset_fields = ['taluka_code']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+
+        if request.GET.get('is_export') and request.GET.get('is_export') in ['1', 1]:
+            for_count = 0
+            csv_header = ['Sr.No', 'File Name','District','Taluka','Village','Map Code','Current Status','Remark']
+            csv_body = []
+
+            qs_data = self.get_serializer(queryset, many=True)
+
+            for qs in qs_data.data:
+                for_count += 1
+                district_name = qs.get('district_name', {}).get('district_name', '') if qs.get('district_name') else ''
+                taluka_name = qs.get('taluka_name', {}).get('taluka_name', '') if qs.get('taluka_name') else ''
+                village_name = qs.get('village_name', {}).get('village_name', '') if qs.get('village_name') else ''
+                csv_body.append(
+                    [
+                        for_count,
+                        qs.get('file_name'),
+                        district_name,
+                        taluka_name,
+                        village_name,
+                        qs.get('map_code'),
+                        qs.get('current_status'),
+                        qs.get('tippen_remarks',''),
+                       
+                    ]
+                )
+
+            csv_data = generate_data_csv(csv_header, csv_body, f"scan_report_{datetime.now()}_.csv")
+            return Response({'csv_path': csv_data.get('csv_path')})
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        agency_ids = User.objects.filter(id=self.request.user.id).values_list('agency', flat=True)
+        if User.objects.filter(id=self.request.user.id, user_role__role_name="Super Admin"):
+            query_set = queryset.filter(current_status=40).order_by('-date_created')
+        elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
+            query_set = queryset.filter(tippen_qc_agency_id_id__in=agency_ids,current_status=41).exclude(tippen_qc_by__isnull=False).order_by('-date_created')
+        else:
+            current_status_values = [41,42,43]
+            query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,tippen_qc_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
+        
+        village_name = self.request.query_params.get('village_name', None)
+        taluka_name = self.request.query_params.get('taluka_name', None)
+        district_name = self.request.query_params.get('district_name', None)
+        barcode_number = self.request.query_params.get('barcode_number', None)
+        file_name = self.request.query_params.get('file_name', None)
+        district_code = self.request.query_params.get('district_code', None)
+        village_code = self.request.query_params.get('village_code', None)
+        map_code = self.request.query_params.get('map_code', None)
+        current_status = self.request.query_params.get('current_status', None)
+        
+        
+       
+        
+        if village_name:
+            village_names = Village.objects.filter(village_name__icontains=village_name).values_list('village_code',flat=True)
+            query_set = query_set.filter(village_code__in=village_names)
+            
+
+        if taluka_name:
+            taluka_names = Taluka.objects.filter(taluka_name__icontains=taluka_name).values_list('taluka_code',flat=True)
+            query_set = query_set.filter(taluka_code__in=taluka_names)
+
+
+        if district_name:
+            district_names = District.objects.filter(district_name__icontains=district_name).values_list('district_code',flat=True)
+            query_set = query_set.filter(district_code__in=district_names)
+        
+        if barcode_number:
+            query_set = query_set.filter(barcode_number__icontains=barcode_number)
+        
+        if file_name:
+            query_set = query_set.filter(file_name__icontains=file_name)
+            
+        if district_code:
+            query_set = query_set.filter(district_code__icontains=district_code)
+        
+        if village_code:
+            query_set = query_set.filter(village_code__icontains=village_code)
+       
+        if map_code:
+            query_set = query_set.filter(map_code__icontains=map_code)
+
+        
+        
+        if current_status:
+            query_set = query_set.filter(current_status__status__icontains=current_status)
+        
+
+        return query_set
+    
+
+class TippenGovQCDocumentListView(ListAPIView):
+    queryset = TippenDocument.objects.all()
+    permission_classes = [IsAuthenticated,]
+    authentication_classes = (TokenAuthentication,)
+    serializer_class = TippenScanDocumentListSerializer
+    pagination_class = CustomPageNumberPagination
+    filter_backends = [DjangoFilterBackend,filters.SearchFilter]
+    search_fields = []
+    filterset_fields = ['taluka_code']
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+
+        if request.GET.get('is_export') and request.GET.get('is_export') in ['1', 1]:
+            for_count = 0
+            csv_header = ['Sr.No', 'File Name','District','Taluka','Village','Map Code','Current Status','Remark']
+            csv_body = []
+
+            qs_data = self.get_serializer(queryset, many=True)
+
+            for qs in qs_data.data:
+                for_count += 1
+                district_name = qs.get('district_name', {}).get('district_name', '') if qs.get('district_name') else ''
+                taluka_name = qs.get('taluka_name', {}).get('taluka_name', '') if qs.get('taluka_name') else ''
+                village_name = qs.get('village_name', {}).get('village_name', '') if qs.get('village_name') else ''
+                csv_body.append(
+                    [
+                        for_count,
+                        qs.get('file_name'),
+                        district_name,
+                        taluka_name,
+                        village_name,
+                        qs.get('map_code'),
+                        qs.get('current_status'),
+                        qs.get('tippen_remarks',''),
+                       
+                    ]
+                )
+
+            csv_data = generate_data_csv(csv_header, csv_body, f"scan_report_{datetime.now()}_.csv")
+            return Response({'csv_path': csv_data.get('csv_path')})
+
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        agency_ids = User.objects.filter(id=self.request.user.id).values_list('agency', flat=True)
+        if User.objects.filter(id=self.request.user.id, user_role__role_name="Super Admin"):
+            query_set = queryset.filter(current_status=44).order_by('-date_created')
+        elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
+            query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,current_status=41).exclude(tippen_qc_by__isnull=False).order_by('-date_created')
+        else:
+            current_status_values = [41,42,43]
+            query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,tippen_qc_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
+        
+        village_name = self.request.query_params.get('village_name', None)
+        taluka_name = self.request.query_params.get('taluka_name', None)
+        district_name = self.request.query_params.get('district_name', None)
+        barcode_number = self.request.query_params.get('barcode_number', None)
+        file_name = self.request.query_params.get('file_name', None)
+        district_code = self.request.query_params.get('district_code', None)
+        village_code = self.request.query_params.get('village_code', None)
+        map_code = self.request.query_params.get('map_code', None)
+        current_status = self.request.query_params.get('current_status', None)
+        
+        
+       
+        
+        if village_name:
+            village_names = Village.objects.filter(village_name__icontains=village_name).values_list('village_code',flat=True)
+            query_set = query_set.filter(village_code__in=village_names)
+            
+
+        if taluka_name:
+            taluka_names = Taluka.objects.filter(taluka_name__icontains=taluka_name).values_list('taluka_code',flat=True)
+            query_set = query_set.filter(taluka_code__in=taluka_names)
+
+
+        if district_name:
+            district_names = District.objects.filter(district_name__icontains=district_name).values_list('district_code',flat=True)
+            query_set = query_set.filter(district_code__in=district_names)
+        
+        if barcode_number:
+            query_set = query_set.filter(barcode_number__icontains=barcode_number)
+        
+        if file_name:
+            query_set = query_set.filter(file_name__icontains=file_name)
+            
+        if district_code:
+            query_set = query_set.filter(district_code__icontains=district_code)
+        
+        if village_code:
+            query_set = query_set.filter(village_code__icontains=village_code)
+       
+        if map_code:
+            query_set = query_set.filter(map_code__icontains=map_code)
+
+        
+        
+        if current_status:
+            query_set = query_set.filter(current_status__status__icontains=current_status)
+        
+
+        return query_set

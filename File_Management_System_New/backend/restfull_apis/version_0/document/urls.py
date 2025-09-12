@@ -165,14 +165,15 @@ urlpatterns = [
     path('twentyno-duplicate-barcodes/', TwentyNoBarcodeAPIView.as_view(), name='twentyno-duplicate-barcodes'),
     path('twentytwono-duplicate-barcodes/', TwentyTwoNoBarcodeAPIView.as_view(), name='twentytwono-duplicate-barcodes'),
     
+    ############ Tippen APIs ###########
     path("tippen-scan-upload-bulk/", TippenScanUploadDocumentView.as_view(),name="tippen-scan-upload-bulk"),
     path("tippen-ditize-bulk/<str:action>/", UpdateTippenDigitizeFileCreateView.as_view(),name="tippen-ditize-bulk"),
     path("tippen-govqc-upload-bulk/<str:action>/", UpdateTippenGovQCFileCreateView.as_view(),name="tippen-govqc-upload-bulk"),
     
    
     path("tippen-scan-document-list/", TippenScanDocumentListView.as_view(), name="tippen-scan-document-list"),
-
-
+    path("tippen-digitize-document-list/", TippenDigitizeDocumentListView.as_view(), name="tippen-digitize-document-list"),
+    path("tippen-gov-qc-document-list/", TippenGovQCDocumentListView.as_view(), name="tippen-gov-qc-document-list"),
 
 
 
