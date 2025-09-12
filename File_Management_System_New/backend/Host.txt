@@ -1,0 +1,25 @@
+[program:gunicorn]
+directory=/home/metadig/File_Management_Backend/backend
+command=/home/metadig/file_venv/bin/gunicorn --workers 4  --bind 0.0.0.0:8000 backend.wsgi:application
+autostart=true
+autorestart=true
+stderr_logfile=/home/metadig/logs/gunicorn.err.log
+stdout_logfile=/home/metadig/logs/gunicorn.out.log
+[group:guni]
+programs:gunicorn
+
+
+
+
+#######nginx
+server {
+  listen 80;
+  server_name 27.107.9.132;
+  client_max_body_size 200M;
+
+  location / {
+    proxy_pass http://localhost:8000;
+    proxy_http_version 1.1;
+  }
+
+}

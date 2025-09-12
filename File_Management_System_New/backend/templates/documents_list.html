@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+        }
+        a {
+            text-decoration: none;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+
+<h2>List of Media Documents</h2>
+
+<ul>
+    {% for document in document_list %}
+        <li>
+            <a href="{{ document }}" target="_blank">{{ document }}</a>
+        </li>
+    {% empty %}
+        <li>No documents found.</li>
+    {% endfor %}
+</ul>
+
+</body>
+</html>
