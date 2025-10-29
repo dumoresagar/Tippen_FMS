@@ -901,10 +901,10 @@ class TippenScanDocumentListSerializer(serializers.ModelSerializer):
     village_name = serializers.SerializerMethodField('village',read_only=True)
 
     class Meta:
-        model = Document
+        model = TippenDocument
         fields = ['id','district_name','taluka_name','taluka_code','village_name','barcode_number',
                   'file_name','district_code','village_code','map_code','tippen_uploaded_by','tippen_uploaded_date','current_status',
-                  'tippen_remarks','tippen_uploaded_by_username','tippen_digitize_by_username']
+                  'tippen_digitize_remarks','tippen_uploaded_by_username','tippen_digitize_by_username']
                 
     
    
@@ -954,3 +954,85 @@ class TippenUploadDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = TippenDocument
         fields = "__all__"
+
+
+
+class AllTippenScanDocumentListSerializer(serializers.ModelSerializer):
+    tippen_uploaded_by_username = serializers.SerializerMethodField(read_only=True)
+    tippen_digitize_by_username = serializers.SerializerMethodField(read_only=True)
+    tippen_digitize_agency_id_agency_name = serializers.SerializerMethodField(read_only=True)
+    tippen_qc_agency_id_agency_name= serializers.SerializerMethodField(read_only=True)
+    tippen_qc_by_username = serializers.SerializerMethodField(read_only=True)
+    current_status = serializers.SerializerMethodField(read_only=True)
+    district_name = serializers.SerializerMethodField('district',read_only=True)
+    taluka_name = serializers.SerializerMethodField('taluka',read_only=True)
+    village_name = serializers.SerializerMethodField('village',read_only=True)
+
+    class Meta:
+        model = TippenDocument
+        fields = ['id','district_name','taluka_name','taluka_code','village_name','barcode_number',
+                  'file_name','district_code','village_code','map_code','tippen_uploaded_by','tippen_uploaded_date','current_status','tippen_polygon_count',
+                  'tippen_digitize_remarks','tippen_qc_remarks','tippen_uploaded_by_username','tippen_digitize_by_username','tippen_digitize_agency_id_agency_name',
+                  'tippen_digitize_assign_date','tippen_digitize_completed_date','tippen_qc_agency_id_agency_name','tippen_qc_by_username','tippen_qc_assign_date','tippen_qc_completed_date']
+                
+    
+   
+    def district(self,obj):
+        try:
+            query_set = District.objects.get(district_code=obj.district_code)
+            return DistrictNameSerializer(query_set).data
+        except District.DoesNotExist:
+            return None
+    
+    def taluka(self, obj):
+        try:
+            query_set = Taluka.objects.get(taluka_code=obj.taluka_code)
+            return TalukaNameSerializer(query_set).data
+        except Taluka.DoesNotExist:
+            return None
+
+    
+    def village(self,obj):
+        try:
+            query_set = Village.objects.get(village_code=obj.village_code)
+            return VillageNameSerializer(query_set).data
+        except Village.DoesNotExist:
+            return None
+    
+    def get_current_status(self,obj):
+        if obj and obj.current_status:
+            return obj.current_status.status
+        else:
+            return None
+        
+    def get_tippen_uploaded_by_username(self,obj):
+        if obj and obj.tippen_uploaded_by:
+            return obj.tippen_uploaded_by.username
+        else:
+            return None
+    
+    def get_tippen_digitize_by_username(self,obj):
+        if obj and obj.tippen_digitize_by:
+            return obj.tippen_digitize_by.username
+        else:
+            return None
+        
+     
+    def get_tippen_digitize_agency_id_agency_name(self,obj):
+        if obj and obj.tippen_digitize_agency_id:
+            return obj.tippen_digitize_agency_id.agency_name
+        else:
+            return None
+        
+      
+    def get_tippen_qc_agency_id_agency_name(self,obj):
+        if obj and obj.tippen_qc_agency_id:
+            return obj.tippen_qc_agency_id.agency_name
+        else:
+            return None
+        
+    def get_tippen_qc_by_username(self,obj):
+        if obj and obj.tippen_qc_by:
+            return obj.tippen_qc_by.username
+        else:
+            return None

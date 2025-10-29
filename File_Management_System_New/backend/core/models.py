@@ -1031,6 +1031,71 @@ def dynamic_tippen_qc_upload_path(instance, filename):
     # Return the final path for the uploaded file
     return os.path.join(maptype_dir, filename)
 
+def dynamic_tippen_gov_qc_upload_path(instance, filename):
+    # Extract the district, taluka, and village codes from the filename
+    district_code = filename[:3]
+    taluka_code = filename[3:7]
+    village_code = filename[7:13]
+    maptype_code = filename[13:15]
+
+    try:
+        # Get the district name from the District model
+        district = District.objects.get(district_code=district_code)
+        district_name = district.district_name
+    except Exception:
+        district_name = ''
+
+    try:
+        # Get the taluka name from the Taluka model
+        taluka = Taluka.objects.get(taluka_code=taluka_code)
+        taluka_name = taluka.taluka_name
+    except Exception:
+        taluka_name = ''
+
+    try:
+        # Get the village name from the Village model
+        village = Village.objects.get(village_code=village_code)
+        village_name = village.village_name
+        if '.' in village_name:
+            village_name = village_name.replace('.', '')
+    except Exception:
+        village_name = ''
+    
+    try:
+        # Get the village name from the MapType model
+        map_type_code = MapType.objects.get(map_code=maptype_code)
+        maptype_name = map_type_code.map_code
+    except Exception:
+        maptype_name = ''
+
+    # Define the base directory where uploads will be stored
+    base_dir = 'uploads'
+
+    # Create the full directory path based on the codes and names
+    district_dir = os.path.join(base_dir,"TippenGovQC", f"{district_code}_{district_name}")
+    taluka_dir = os.path.join(district_dir, f"{taluka_code}_{taluka_name}")
+    village_dir = os.path.join(taluka_dir, f"{village_code}_{village_name}")
+    maptype_dir = os.path.join(village_dir, f"{maptype_code}")
+
+    # Create the directories if they don't exist
+    for directory in [base_dir, district_dir, taluka_dir, village_dir, maptype_dir]:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        else:
+            # If the folder already exists, delete the old file
+            old_file_path = os.path.join(maptype_dir, filename)
+            if default_storage.exists(old_file_path):
+                default_storage.delete(old_file_path)
+
+    # If any of the district, taluka, or village names are empty, save in NotFound folder
+    if not district_name or not taluka_name or not village_name or not maptype_name:
+        not_found_dir = os.path.join(base_dir, 'TippenNotFound')
+        if not os.path.exists(not_found_dir):
+            os.makedirs(not_found_dir)
+        return os.path.join(not_found_dir, filename)
+
+    # Return the final path for the uploaded file
+    return os.path.join(maptype_dir, filename)
 
 def dynamic_backupfile_upload_path(instance, filename):
     # Extract the district, taluka, and village codes from the filename
@@ -1115,12 +1180,19 @@ class TippenDocument(BaseModelMixin):
     tippen_polygon_count = models.IntegerField(blank=True,default=0)
     tippen_digitize_assign_date = models.DateTimeField(blank=True,null=True)
     tippen_digitize_completed_date = models.DateTimeField(blank=True,null=True)
+    tippen_digitize_remarks = models.CharField(max_length=200, null=True, blank=True)
     tippen_qc_agency_id = models.ForeignKey('users.Agency',on_delete=models.CASCADE,blank=True,null=True,related_name='tippenqc_agency_id')
     tippen_qc_upload = models.FileField(upload_to=dynamic_tippen_qc_upload_path,blank=True,null=True)
     tippen_qc_by = models.ForeignKey('users.User',on_delete=models.CASCADE,blank=True,null=True,related_name="tippenqcby_user")
     tippen_qc_assign_date = models.DateTimeField(blank=True,null=True)
     tippen_qc_completed_date = models.DateTimeField(blank=True,null=True)
-    tippen_remarks = models.CharField(max_length=200, null=True, blank=True)
+    tippen_qc_remarks = models.CharField(max_length=200, null=True, blank=True)
+    tippen_gov_qc_agency_id = models.ForeignKey('users.Agency',on_delete=models.CASCADE,blank=True,null=True,related_name='tippengovqc_agency_id')
+    tippen_gov_qc_upload = models.FileField(upload_to=dynamic_tippen_gov_qc_upload_path,blank=True,null=True)
+    tippen_gov_qc_by = models.ForeignKey('users.User',on_delete=models.CASCADE,blank=True,null=True,related_name="tippengovqcby_user")
+    tippen_gov_qc_assign_date = models.DateTimeField(blank=True,null=True)
+    tippen_gov_qc_completed_date = models.DateTimeField(blank=True,null=True)
+    tippen_gov_qc_remarks = models.CharField(max_length=200, null=True, blank=True)
     current_status = models.ForeignKey(DocumentStatus,on_delete=models.CASCADE,blank=True,null=True)
 
     
@@ -1130,6 +1202,14 @@ class TippenDocument(BaseModelMixin):
     class Meta:
         verbose_name = _("Tippen Document")
         verbose_name_plural = _("Tippen Document")
+        indexes = [
+            models.Index(fields=['district_code']),
+            models.Index(fields=['village_code']),
+            models.Index(fields=['taluka_code']),
+            models.Index(fields=['map_code']),
+            models.Index(fields=['current_status']),
+            models.Index(fields=['district_code', 'taluka_code', 'village_code', 'map_code','current_status']),
+        ]
     
     def __str__(self):
         return f"{self.pk}"

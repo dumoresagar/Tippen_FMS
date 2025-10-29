@@ -167,15 +167,29 @@ urlpatterns = [
     
     ############ Tippen APIs ###########
     path("tippen-scan-upload-bulk/", TippenScanUploadDocumentView.as_view(),name="tippen-scan-upload-bulk"),
-    path("tippen-ditize-bulk/<str:action>/", UpdateTippenDigitizeFileCreateView.as_view(),name="tippen-ditize-bulk"),
-    path("tippen-govqc-upload-bulk/<str:action>/", UpdateTippenGovQCFileCreateView.as_view(),name="tippen-govqc-upload-bulk"),
+    path("tippen-digitize-bulk/<str:action>/", UpdateTippenDigitizeFileCreateView.as_view(),name="tippen-digitize-bulk"),
+    path("tippen-backupfile-upload-bulk/<str:action>/", UpdateBackeupFileCreateView.as_view(),name="tippen-backupfile-upload-bulk"),
+    path("tippen-qc-upload-bulk/<str:action>/", UpdateTippenQCFileCreateView.as_view(),name="tippen-qc-upload-bulk"),
+    path("tippen-gov-qc-upload-bulk/<str:action>/", UpdateTippenGovQCFileCreateView.as_view(),name="tippen-gov-qc-upload-bulk"),
+
     
    
+    path("tippen-all-document-list/", TippenAllDocumentListView.as_view(), name="tippen-all-document-list"),
     path("tippen-scan-document-list/", TippenScanDocumentListView.as_view(), name="tippen-scan-document-list"),
     path("tippen-digitize-document-list/", TippenDigitizeDocumentListView.as_view(), name="tippen-digitize-document-list"),
+    path("tippen-qc-document-list/", TippenQCDocumentListView.as_view(), name="tippen-qc-document-list"),
     path("tippen-gov-qc-document-list/", TippenGovQCDocumentListView.as_view(), name="tippen-gov-qc-document-list"),
 
 
 
+    path("tippen-digitize-assignto-agency-bulk/<int:agency_id>/", TippenDigitizeAssignToAgencyView.as_view(),name="tippen-digitize-assignto-agency-bulk"),#
+    path("tippen-qc--assignto-agency-bulk/<int:agency_id>/", TippenQCAssignToAgencyView.as_view(),name="tippen-qc--assignto-agency-bulk"),#
+    path("tippen-gov-qc--assignto-agency-bulk/<int:agency_id>/", TippenGovQCAssignToAgencyView.as_view(),name="tippen-gov-qc--assignto-agency-bulk"),#
+
+    path("tippen-digitize-assignto-agencyuser-bulk/<int:user_id>/", TippenDigitizeAssignToAgencyUserView.as_view(),name="tippen-digitize-assignto-agencyuser-bulk"),#
+    path("tippen-qc-assignto-agencyuser-bulk/<int:user_id>/", TippenQCAssignToAgencyUserView.as_view(),name="tippen-qc-assignto-agencyuser-bulk"),#
+    path("tippen-gov-qc-assignto-agencyuser-bulk/<int:user_id>/", TippenGovQCAssignToAgencyUserView.as_view(),name="tippen-gov-qc-assignto-agencyuser-bulk"),#
+
+    path('tippen-scan-download/<int:document_id>/',tippen_scan_download_file, name='tippen-scan-download'),
 
 ]

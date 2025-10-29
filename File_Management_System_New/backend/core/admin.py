@@ -258,13 +258,14 @@ class TippenDocumentAdmin(ImportExportModelAdmin,admin.ModelAdmin):
         "barcode_number",
         "current_status",
         "tippen_polygon_count",
-        "tippen_remarks",
+        "tippen_digitize_remarks",
         "tippen_uploaded_by",
         "tippen_digitize_agency_id",
         "tippen_digitize_by",
         "tippen_qc_agency_id",
         "tippen_qc_upload",
         "tippen_qc_by",
+        "tippen_qc_remarks",
         "current_status"
 
        
