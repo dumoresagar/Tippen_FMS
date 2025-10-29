@@ -183,7 +183,7 @@ urlpatterns = [
 
 
     path("tippen-digitize-assignto-agency-bulk/<int:agency_id>/", TippenDigitizeAssignToAgencyView.as_view(),name="tippen-digitize-assignto-agency-bulk"),#
-    path("tippen-qc--assignto-agency-bulk/<int:agency_id>/", TippenQCAssignToAgencyView.as_view(),name="tippen-qc--assignto-agency-bulk"),#
+    path("tippen-qc-assignto-agency-bulk/<int:agency_id>/", TippenQCAssignToAgencyView.as_view(),name="tippen-qc--assignto-agency-bulk"),#
     path("tippen-gov-qc--assignto-agency-bulk/<int:agency_id>/", TippenGovQCAssignToAgencyView.as_view(),name="tippen-gov-qc--assignto-agency-bulk"),#
 
     path("tippen-digitize-assignto-agencyuser-bulk/<int:user_id>/", TippenDigitizeAssignToAgencyUserView.as_view(),name="tippen-digitize-assignto-agencyuser-bulk"),#

@@ -6896,7 +6896,7 @@ class TippenScanDocumentListView(ListAPIView):
         elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
             query_set = queryset.filter(tippen_digitize_agency_id__in=agency_ids,current_status=37).exclude(tippen_digitize_by__isnull=False).order_by('-date_created')
         else:
-            current_status_values = [37,38,39]
+            current_status_values = [37,39,40]
             query_set = queryset.filter(tippen_digitize_agency_id__in=agency_ids,tippen_digitize_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
         
         village_name = self.request.query_params.get('village_name', None)
@@ -7356,11 +7356,11 @@ class TippenDigitizeDocumentListView(ListAPIView):
         queryset = self.queryset
         agency_ids = User.objects.filter(id=self.request.user.id).values_list('agency', flat=True)
         if User.objects.filter(id=self.request.user.id, user_role__role_name="Super Admin"):
-            query_set = queryset.filter(current_status=40).order_by('-date_created')
+            query_set = queryset.filter(current_status=38).order_by('-date_created')
         elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
             query_set = queryset.filter(tippen_qc_agency_id_id__in=agency_ids,current_status=41).exclude(tippen_qc_by__isnull=False).order_by('-date_created')
         else:
-            current_status_values = [41,42,43]
+            current_status_values = [41,43,44]
             query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,tippen_qc_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
         
         village_name = self.request.query_params.get('village_name', None)
