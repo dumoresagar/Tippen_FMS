@@ -170,7 +170,7 @@ urlpatterns = [
     path("tippen-digitize-bulk/<str:action>/", UpdateTippenDigitizeFileCreateView.as_view(),name="tippen-digitize-bulk"),
     path("tippen-backupfile-upload-bulk/<str:action>/", UpdateBackeupFileCreateView.as_view(),name="tippen-backupfile-upload-bulk"),
     path("tippen-qc-upload-bulk/<str:action>/", UpdateTippenQCFileCreateView.as_view(),name="tippen-qc-upload-bulk"),
-    path("tippen-gov-qc-upload-bulk/<str:action>/", UpdateTippenGovQCFileCreateView.as_view(),name="tippen-gov-qc-upload-bulk"),
+    path("tippen-gov-qc-upload-bulk/", UpdateTippenGovQCFileCreateView.as_view(),name="tippen-gov-qc-upload-bulk"),
 
     
    

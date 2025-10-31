@@ -6949,40 +6949,118 @@ class TippenScanDocumentListView(ListAPIView):
 
         return query_set
         
+# class TippenScanUploadDocumentView(generics.GenericAPIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = (TokenAuthentication,)
+#     serializer_class = UploadTippenScanDocumentSerializer
+#     # Use the custom serializer
+
+#     def post(self, request, *args, **kwargs):
+#         data = request.FILES.getlist('files')
+#         total_len = 0
+#         validation_errors = []
+#         uploaded_files = [] 
+#         allowed_extensions = ['.JPG','.JPEG','.jpeg','.jpg']  ###
+    
+#         for file in data:
+#             filename = file.name
+#             base_filename,file_extension = os.path.splitext(filename)
+
+          
+#             if file_extension.lower() not in allowed_extensions:  ###
+#                 print(f"Skipping file {filename}: Only .JPEG files are allowed.")  ###
+#                 continue                                                           ###
+#             code = base_filename.split("_")[0]
+
+#             try:
+#                 # Create a SimpleUploadedFile with the file data
+#                 new_filename = f"{base_filename}{file_extension}"
+#                 uploaded_file = SimpleUploadedFile(name=new_filename, content=file.read())
+#                 district_code = base_filename[:3]
+#                 taluka_code = base_filename[3:7]
+#                 village_code = base_filename[7:13]
+#                 maptype_code = base_filename[13:15]
+
+#                 try:
+#                     # Get the district name from the District model
+#                     district = District.objects.get(district_code=district_code)
+#                     taluka = Taluka.objects.get(taluka_code=taluka_code)
+#                     village = Village.objects.get(village_code=village_code)
+#                     maptype = MapType.objects.get(map_code=maptype_code)
+#                     status_code = 36
+#                 except Exception:
+#                     status_code = 28
+
+
+#                 # Create a dictionary with the data to update
+#                 scan_upload_by = self.request.user.id
+#                 completed_date =datetime.now()
+#                 update_data = {
+#                     'tippen_scan_upload': uploaded_file,  # Pass the uploaded file data
+#                     "tippen_uploaded_by":scan_upload_by,
+#                     "tippen_uploaded_date":completed_date,
+#                     "current_status":status_code
+#                 }
+
+#                 serializer = self.get_serializer(data=update_data, partial=True)
+#                 if serializer.is_valid():
+#                     serializer.save()
+#                     uploaded_files.append(new_filename)  # Add the uploaded file name to the list
+#                     total_len += 1
+#                 else:
+#                     validation_errors.extend(serializer.errors.get('scan_upload', []))
+
+
+#             except Document.DoesNotExist:
+#                 print(f"Object with barcode {code} does not exist.")
+#         if validation_errors:
+#             return Response({"message": f"{total_len} Tippen Scan Files Uploaded","Uploaded Files": uploaded_files, "errors": validation_errors}, status=status.HTTP_400_BAD_REQUEST)
+
+#         return Response({"message": f"{total_len} Tippen Scan Files Uploaded","Uploaded Files": uploaded_files,}, status=status.HTTP_200_OK)
+
 class TippenScanUploadDocumentView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = (TokenAuthentication,)
     serializer_class = UploadTippenScanDocumentSerializer
-    # Use the custom serializer
 
     def post(self, request, *args, **kwargs):
         data = request.FILES.getlist('files')
         total_len = 0
         validation_errors = []
-        uploaded_files = [] 
-        allowed_extensions = ['.JPG','.JPEG','.jpeg','.jpg']  ###
-    
+        uploaded_files = []
+        skipped_files = []  # to track skipped files
+        allowed_extensions = ['.JPG', '.JPEG', '.jpeg', '.jpg']
+
         for file in data:
             filename = file.name
-            base_filename,file_extension = os.path.splitext(filename)
+            base_filename, file_extension = os.path.splitext(filename)
 
-          
-            if file_extension.lower() not in allowed_extensions:  ###
-                print(f"Skipping file {filename}: Only .JPEG files are allowed.")  ###
-                continue                                                           ###
+            # ✅ Step 1: Check for allowed file extensions
+            if file_extension.lower() not in [ext.lower() for ext in allowed_extensions]:
+                skipped_files.append(f"{filename}: Invalid file type (only .jpg/.jpeg allowed).")
+                continue
+
+            # ✅ Step 2: Extract maptype_code
+            maptype_code = base_filename[13:15]
+
+            # ✅ Step 3: Allow only maptype_code == '01'
+            if maptype_code != '01':
+                skipped_files.append(f"{filename}: Skipped (only maptype_code '01' allowed).")
+                continue
+
             code = base_filename.split("_")[0]
+            new_filename = f"{base_filename}{file_extension}"
 
             try:
-                # Create a SimpleUploadedFile with the file data
-                new_filename = f"{base_filename}{file_extension}"
+                # Create file object
                 uploaded_file = SimpleUploadedFile(name=new_filename, content=file.read())
+
+                # Extract district/taluka/village/map codes
                 district_code = base_filename[:3]
                 taluka_code = base_filename[3:7]
                 village_code = base_filename[7:13]
-                maptype_code = base_filename[13:15]
 
                 try:
-                    # Get the district name from the District model
                     district = District.objects.get(district_code=district_code)
                     taluka = Taluka.objects.get(taluka_code=taluka_code)
                     village = Village.objects.get(village_code=village_code)
@@ -6991,32 +7069,42 @@ class TippenScanUploadDocumentView(generics.GenericAPIView):
                 except Exception:
                     status_code = 28
 
-
-                # Create a dictionary with the data to update
-                scan_upload_by = self.request.user.id
-                completed_date =datetime.now()
+                # Prepare update data
+                scan_upload_by = request.user.id
+                completed_date = datetime.now()
                 update_data = {
-                    'tippen_scan_upload': uploaded_file,  # Pass the uploaded file data
-                    "tippen_uploaded_by":scan_upload_by,
-                    "tippen_uploaded_date":completed_date,
-                    "current_status":status_code
+                    'tippen_scan_upload': uploaded_file,
+                    "tippen_uploaded_by": scan_upload_by,
+                    "tippen_uploaded_date": completed_date,
+                    "current_status": status_code
                 }
 
+                # Validate and save using serializer
                 serializer = self.get_serializer(data=update_data, partial=True)
                 if serializer.is_valid():
                     serializer.save()
-                    uploaded_files.append(new_filename)  # Add the uploaded file name to the list
+                    uploaded_files.append(new_filename)
                     total_len += 1
                 else:
                     validation_errors.extend(serializer.errors.get('scan_upload', []))
 
-
             except Document.DoesNotExist:
-                print(f"Object with barcode {code} does not exist.")
-        if validation_errors:
-            return Response({"message": f"{total_len} Tippen Scan Files Uploaded","Uploaded Files": uploaded_files, "errors": validation_errors}, status=status.HTTP_400_BAD_REQUEST)
+                skipped_files.append(f"{filename}: No matching document found.")
 
-        return Response({"message": f"{total_len} Tippen Scan Files Uploaded","Uploaded Files": uploaded_files,}, status=status.HTTP_200_OK)
+        # ✅ Prepare final response
+        response_data = {
+            "message": f"{total_len} Tippen Scan Files Uploaded Successfully",
+            "Uploaded Files": uploaded_files,
+        }
+
+        if skipped_files:
+            response_data["Skipped Files"] = skipped_files
+        if validation_errors:
+            response_data["Validation Errors"] = validation_errors
+
+        status_code = status.HTTP_400_BAD_REQUEST if validation_errors else status.HTTP_200_OK
+        return Response(response_data, status=status_code)
+
     
 class UpdateTippenDigitizeFileCreateView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -7039,7 +7127,9 @@ class UpdateTippenDigitizeFileCreateView(generics.GenericAPIView):
                 try:
                     # Get the existing object based on the barcode
                     obj = TippenDocument.objects.get(barcode_number=code,tippen_uploaded_date__isnull=False,current_status__in=[37,39,40])
-                    new_filename = f"{base_filename}{file_extension}"
+                    # new_filename = f"{base_filename}{file_extension}"
+                    if file_extension.lower() == ".zip":
+                        new_filename = f"{base_filename}{file_extension}"
 
 
                     # Create a SimpleUploadedFile with the file data
@@ -7053,15 +7143,16 @@ class UpdateTippenDigitizeFileCreateView(generics.GenericAPIView):
                     # Check if digitize_agency_id is present
                     
                    
-
-                    update_data = {
+                
+                    if file_extension.lower() == ".zip":
+                        update_data = {
                         'tippen_digitize_agency_id':tippen_digitize_agency_id,
                         'team_id':agency_team_id,
                         'tippen_digitize_upload': uploaded_file,  # Pass the uploaded file data
                         "tippen_digitize_by": tippen_digitize_by,
                         "tippen_digitize_completed_date": completed_date,
                         "current_status": 38
-                    }
+                        }
 
                     serializer = self.get_serializer(obj, data=update_data, partial=True)
                     if serializer.is_valid():
@@ -7129,7 +7220,7 @@ class UpdateTippenQCFileCreateView(generics.GenericAPIView):
                     # Get the existing object based on the barcode
                     obj = TippenDocument.objects.get(barcode_number=code,tippen_digitize_completed_date__isnull=False,current_status__in=[41,43,44])
                     # new_filename = f"{base_filename}{file_extension}"
-                    if file_extension.lower() == ".pdf":
+                    if file_extension.lower() == ".zip":
                         new_filename = f"{base_filename}{file_extension}"
 
                     # Create a SimpleUploadedFile with the file data
@@ -7142,7 +7233,7 @@ class UpdateTippenQCFileCreateView(generics.GenericAPIView):
 
                   
 
-                    if file_extension.lower() == ".pdf":
+                    if file_extension.lower() == ".zip":
                         update_data = {
                             'tippen_qc_agency_id':tippen_qc_agency_id,
                             'tippen_qc_upload': tippen_qc_upload,  # Pass the uploaded file data
@@ -7209,97 +7300,119 @@ class UpdateTippenGovQCFileCreateView(generics.GenericAPIView):
 
     def put(self, request, *args, **kwargs):
         # Extract the action from the URL
-        action = kwargs.get('action', None)
 
-        if action == 'approved':
-            data = request.FILES.getlist('files')
-            tippen_polygon_count = request.data.get("polygon_count")
-            tippen_gov_qc_remarks = request.data.get("tippen_gov_qc_remarks")
-            
-            total_len = 0
-            errors = []
+        data = request.FILES.getlist('files')
+        total_len = 0
 
-            for file in data:
-                filename = file.name
-                base_filename,file_extension = os.path.splitext(filename)
-                code = base_filename.split("_")[0]
+        for file in data:     
+            filename = file.name
+            base_filename,file_extension = os.path.splitext(filename)
+            code = base_filename.split("_")[0]
 
-                
-                try:
-                    # Get the existing object based on the barcode
-                    obj = TippenDocument.objects.get(barcode_number=code,tippen_gov_qc_completed_date__isnull=False,current_status__in=[45,47,48])
-                    # new_filename = f"{base_filename}{file_extension}"
-                    if file_extension.lower() == ".pdf":
-                        new_filename = f"{base_filename}{file_extension}"
+            try:
+                # Get the existing object based on the barcode
+                obj = TippenDocument.objects.get(barcode_number=code,tippen_gov_qc_completed_date__isnull=True,current_status__in=[45,47,48])
 
-                    # Create a SimpleUploadedFile with the file data
-                    tippen_gov_qc_upload = SimpleUploadedFile(name=new_filename, content=file.read())
+                if file_extension.lower() == ".zip":
+                    new_filename = f"{base_filename}{file_extension}"
+               
+
+                # Create a dictionary with the data to update
+                tippen_gov_qc_upload = SimpleUploadedFile(name=new_filename, content=file.read())
 
                     # Create a dictionary with the data to update
-                    tippen_gov_qc_by = self.request.user.id
-                    tippen_gov_qc_agency_id = self.request.user.agency.id
-                    completed_date = datetime.now()
+                tippen_gov_qc_by = self.request.user.id
+                tippen_gov_qc_agency_id = self.request.user.agency.id
+                completed_date = datetime.now()
 
                   
 
-                    if file_extension.lower() == ".pdf":
-                        update_data = {
-                            'tippen_gov_qc_agency_id':tippen_gov_qc_agency_id,
-                            'tippen_gov_qc_upload': tippen_gov_qc_upload,  # Pass the uploaded file data
-                            "tippen_gov_qc_by": tippen_gov_qc_by,
-                            "tippen_gov_qc_remarks":tippen_gov_qc_remarks,
-                            "tippen_gov_qc_completed_date": completed_date,
-                            "current_status": 46
+                if file_extension.lower() == ".zip":
+                    update_data = {
+                        'tippen_gov_qc_agency_id':tippen_gov_qc_agency_id,
+                        'tippen_gov_qc_upload': tippen_gov_qc_upload,  # Pass the uploaded file data
+                        "tippen_gov_qc_by": tippen_gov_qc_by,
+                        "tippen_gov_qc_completed_date": completed_date,
+                        "current_status": 46
                         }
 
-                    serializer = self.get_serializer(obj, data=update_data, partial=True)
-                    if serializer.is_valid():
-                        serializer.save()
-                        total_len += 1
-                    else:
-                        errors.append(f"Error validating data for code {code}: {serializer.errors}")
-
-                except Document.DoesNotExist:
-                    errors.append(f"Object with barcode {code} does not exist.")
-
-            if total_len == 0:
-                return Response({"message": "Digitize Polygon Count Is Not Updated"}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"message": f"{total_len} Tippen Gov Qc Files Updated"}, status=status.HTTP_200_OK)
-            
-        elif action == 'rejected':
-            data = request.data
-
-            # Assuming you send a list of dictionaries with update data
-            update_data_list = data
-
-            for update_data in update_data_list:
-                document_id = update_data.get("id")
-                tippen_remarks = update_data.get("tippen_remarks")
-
-                if not tippen_remarks or not str(tippen_remarks).strip():
-                    return Response(
-                        {"message": f"Tippen Gov Qc  remarks are required for rejecting."},
-                        status=status.HTTP_200_OK
-                    )
-
-                try:
-                    rectify_obj = Document.objects.get(id=document_id)
-                except Document.DoesNotExist:
-                    return Response({"msg": f"Record with ID {document_id} does not exist"})
-
-                # Update the fields specified in the dictionary
-                serializer = UploadDocumentSerializer(rectify_obj, data=update_data, partial=True)
+                serializer = self.get_serializer(obj, data=update_data, partial=True)
                 if serializer.is_valid():
-                    serializer.save(current_status=DocumentStatus.objects.get(id=42))
-        
-            return Response({"message": "Digitize Files Rejected"})
-            # Handle 'rejected' action here
-            # Update current_status to 1 for the appropriate documents
-            # Add your code for the 'rejected' action here
+                    serializer.save()
+                    total_len += 1
+                else:
+                    print(f"Error validating data for code {code}: {serializer.errors}")
 
-        else:
-            return Response({"message": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+            except Document.DoesNotExist:
+                print(f"Object with barcode {code} does not exist.")
+
+        return Response({"message": f"{total_len} Tippen Gov Qc Files Updated"}, status=status.HTTP_200_OK)
+    
+
+
+# class UpdateTippenGovQCFileCreateView(generics.GenericAPIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = (TokenAuthentication,)
+#     serializer_class = TippenUploadDocumentSerializer  # Use the custom serializer
+
+#     def put(self, request, *args, **kwargs):
+#         # Extract the action from the URL
+
+#         data = request.FILES.getlist('files')
+#         tippen_polygon_count = request.data.get("polygon_count")
+#         tippen_gov_qc_remarks = request.data.get("tippen_gov_qc_remarks")
+            
+#         total_len = 0
+#         errors = []
+
+#         for file in data:
+#             filename = file.name
+#             base_filename,file_extension = os.path.splitext(filename)
+#             code = base_filename.split("_")[0]
+
+                
+#             try:
+#                     # Get the existing object based on the barcode
+#                 obj = TippenDocument.objects.get(barcode_number=code,tippen_gov_qc_completed_date__isnull=False,current_status__in=[45,47,48])
+#                     # new_filename = f"{base_filename}{file_extension}"
+#                 if file_extension.lower() == ".zip":
+#                     new_filename = f"{base_filename}{file_extension}"
+
+#                     # Create a SimpleUploadedFile with the file data
+#                 tippen_gov_qc_upload = SimpleUploadedFile(name=new_filename, content=file.read())
+
+#                     # Create a dictionary with the data to update
+#                 tippen_gov_qc_by = self.request.user.id
+#                 tippen_gov_qc_agency_id = self.request.user.agency.id
+#                 completed_date = datetime.now()
+
+                  
+
+#                 if file_extension.lower() == ".zip":
+#                     update_data = {
+#                         'tippen_gov_qc_agency_id':tippen_gov_qc_agency_id,
+#                         'tippen_gov_qc_upload': tippen_gov_qc_upload,  # Pass the uploaded file data
+#                         "tippen_gov_qc_by": tippen_gov_qc_by,
+#                         "tippen_gov_qc_remarks":tippen_gov_qc_remarks,
+#                         "tippen_gov_qc_completed_date": completed_date,
+#                         "current_status": 46
+#                         }
+
+#                 serializer = self.get_serializer(obj, data=update_data, partial=True)
+#                 if serializer.is_valid():
+#                     serializer.save()
+#                     total_len += 1
+#                 else:
+#                     errors.append(f"Error validating data for code {code}: {serializer.errors}")
+
+#             except Document.DoesNotExist:
+#                 errors.append(f"Object with barcode {code} does not exist.")
+
+#         if total_len == 0:
+#             return Response({"message": "Digitize Polygon Count Is Not Updated"}, status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             return Response({"message": f"{total_len} Tippen Gov Qc Files Updated"}, status=status.HTTP_200_OK)
+
 
 class TippenDigitizeDocumentListView(ListAPIView):
     queryset = TippenDocument.objects.all()
@@ -7469,12 +7582,12 @@ class TippenQCDocumentListView(ListAPIView):
         queryset = self.queryset
         agency_ids = User.objects.filter(id=self.request.user.id).values_list('agency', flat=True)
         if User.objects.filter(id=self.request.user.id, user_role__role_name="Super Admin"):
-            query_set = queryset.filter(current_status=38).order_by('-date_created')
+            query_set = queryset.filter(current_status=42).order_by('-date_created')
         elif User.objects.filter(id=self.request.user.id, user_role__role_name="Agency Admin"):
-            query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,current_status=41).exclude(tippen_qc_by__isnull=False).order_by('-date_created')
+            query_set = queryset.filter(tippen_gov_qc_agency_id__in=agency_ids,current_status=45).exclude(tippen_gov_qc_by__isnull=False).order_by('-date_created')
         else:
-            current_status_values = [41,43,44]
-            query_set = queryset.filter(tippen_qc_agency_id__in=agency_ids,tippen_qc_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
+            current_status_values = [45,47,48]
+            query_set = queryset.filter(tippen_gov_qc_by=self.request.user.id,current_status__in=current_status_values).order_by('-date_created')
         
         village_name = self.request.query_params.get('village_name', None)
         taluka_name = self.request.query_params.get('taluka_name', None)
@@ -7703,16 +7816,44 @@ class TippenQCAssignToAgencyUserView(generics.GenericAPIView):
 
         return Response({"message": f"{total_len} Tippen Gov QC Document Assign To User"}, status=status.HTTP_201_CREATED)
     
+# class TippenGovQCAssignToAgencyUserView(generics.GenericAPIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = (TokenAuthentication,)
+#     serializer_class = TippenUploadDocumentSerializer  # Use the custom serializer
+
+#     def put(self, request, *args, **kwargs):
+#         user_id = kwargs.get('user_id')
+#         user_agency = User.objects.filter(id=user_id).values_list('agency', flat=True).first()
+       
+
+#         try:
+#             user_id = get_object_or_404(User, id=user_id)
+#         except Http404:
+#             return Response({"message": f"Agency with ID {user_id} does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+#         data = request.data.get('document_id', [])
+#         total_len = 0
+
+#         for file in data:
+#             assign_date =datetime.now()
+#             documentz_agency= TippenDocument.objects.filter(id=file).values_list('tippen_gov_qc_agency_id', flat=True).first()
+#             if documentz_agency == user_agency:
+#                 created_input_file = TippenDocument.objects.filter(id=file,tippen_gov_qc_by__isnull=True).update(tippen_gov_qc_by=user_id,tippen_gov_qc_assign_date=assign_date)
+#                 if created_input_file > 0:
+#                     total_len += 1
+#             else:
+#                 return Response({"message": "You do not have permission to assign documents to this user."}, status=status.HTTP_403_FORBIDDEN)
+
+
+#         return Response({"message": f"{total_len} Tippen Gov QC Document Assign To User"}, status=status.HTTP_201_CREATED)
+    
 class TippenGovQCAssignToAgencyUserView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = (TokenAuthentication,)
-    serializer_class = TippenUploadDocumentSerializer  # Use the custom serializer
+    serializer_class = UploadDocumentSerializer  # Use the custom serializer
 
     def put(self, request, *args, **kwargs):
         user_id = kwargs.get('user_id')
-        user_agency = User.objects.filter(id=user_id).values_list('agency', flat=True).first()
-       
-
         try:
             user_id = get_object_or_404(User, id=user_id)
         except Http404:
@@ -7723,17 +7864,10 @@ class TippenGovQCAssignToAgencyUserView(generics.GenericAPIView):
 
         for file in data:
             assign_date =datetime.now()
-            documentz_agency= TippenDocument.objects.filter(id=file).values_list('tippen_gov_qc_agency_id', flat=True).first()
-            if documentz_agency == user_agency:
-                created_input_file = TippenDocument.objects.filter(id=file,tippen_gov_qc_by__isnull=True).update(tippen_gov_qc_by=user_id,tippen_gov_qc_assign_date=assign_date)
-                if created_input_file > 0:
-                    total_len += 1
-            else:
-                return Response({"message": "You do not have permission to assign documents to this user."}, status=status.HTTP_403_FORBIDDEN)
-
+            created_input_file = TippenDocument.objects.filter(id=file,tippen_gov_qc_by__isnull=True).update(tippen_gov_qc_by=user_id,tippen_gov_qc_assign_date=assign_date,current_status=45)
+            total_len += 1
 
         return Response({"message": f"{total_len} Tippen Gov QC Document Assign To User"}, status=status.HTTP_201_CREATED)
-
 class TippenDigitizeAssignToAgencyView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = (TokenAuthentication,)
